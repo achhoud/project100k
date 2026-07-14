@@ -1,7 +1,8 @@
+import FeatureCards from "@/components/FeatureCards";
 export default function Home() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-20">
+    <main className="min-h-[75vh] bg-zinc-950 text-white">
+      <section className="mx-auto flex min-h-[75vh] max-w-6xl flex-col justify-center px-6 py-20">
         <div className="mb-6 inline-flex w-fit rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">
           Project 100K
         </div>
@@ -48,6 +49,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      <FeatureCards />
     </main>
   );
 }
