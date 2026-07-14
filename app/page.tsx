@@ -17,9 +17,14 @@ export default function Home() {
         </p>
 
         <div className="mt-10 flex flex-wrap gap-4">
-          <button className="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-zinc-950">
-            Bekijk de tools
-          </button>
+          <a
+  href="/calculator"
+  className="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-zinc-950"
+>
+  Bekijk de tools
+</a>
+           
+          
 
           <button className="rounded-xl border border-zinc-700 px-6 py-3 font-semibold">
             Bekijk de roadmap
