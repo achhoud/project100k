@@ -18,8 +18,8 @@ const features = [
   {
     title: "ETF Calculator",
     description:
-      "Binnenkort beschikbaar.",
-    link: "#",
+      "Bereken hoe jouw ETF-portefeuille groeit inclusief jaarlijkse kosten.",
+    link: "/etf-calculator",
     icon: "💰",
   },
   {
@@ -33,7 +33,7 @@ const features = [
 
 export default function FeatureCards() {
   return (
-    <section className="mx-auto mt-8 max-w-7xl px-6">
+    <section className="mx-auto mt-8 max-w-7xl px-6 pb-20">
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-wider text-emerald-400">
           Tools
