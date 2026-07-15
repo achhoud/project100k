@@ -1,7 +1,9 @@
 import FeatureCards from "@/components/FeatureCards";
+import StatCard from "@/components/StatCard";
+
 export default function Home() {
   return (
-    <main className="min-h-[75vh] bg-zinc-950 text-white">
+    <main className="min-h-screen bg-zinc-950 text-white">
       <section className="mx-auto flex min-h-[75vh] max-w-6xl flex-col justify-center px-6 py-20">
         <div className="mb-6 inline-flex w-fit rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">
           Project 100K
@@ -19,36 +21,30 @@ export default function Home() {
 
         <div className="mt-10 flex flex-wrap gap-4">
           <a
-  href="/calculator"
-  className="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-zinc-950"
->
-  Bekijk de tools
-</a>
-           
-          
+            href="/calculator"
+            className="rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-zinc-950 transition hover:bg-emerald-400"
+          >
+            Bekijk de tools
+          </a>
 
-          <button className="rounded-xl border border-zinc-700 px-6 py-3 font-semibold">
+          <button className="rounded-xl border border-zinc-700 px-6 py-3 font-semibold transition hover:border-zinc-500 hover:bg-zinc-900">
             Bekijk de roadmap
           </button>
         </div>
 
         <div className="mt-16 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm text-zinc-500">Startvermogen</p>
-            <p className="mt-2 text-3xl font-bold">€19.000</p>
-          </div>
+          <StatCard title="Startvermogen" value="€19.000" />
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm text-zinc-500">Doelvermogen</p>
-            <p className="mt-2 text-3xl font-bold text-emerald-400">€100.000</p>
-          </div>
+          <StatCard
+            title="Doelvermogen"
+            value="€100.000"
+            accent
+          />
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-            <p className="text-sm text-zinc-500">Voortgang</p>
-            <p className="mt-2 text-3xl font-bold">19%</p>
-          </div>
+          <StatCard title="Voortgang" value="19%" />
         </div>
       </section>
+
       <FeatureCards />
     </main>
   );
