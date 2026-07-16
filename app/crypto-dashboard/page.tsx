@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Cell,
   Pie,
@@ -17,6 +17,43 @@ type Coin = {
   buyPrice: number;
   currentPrice: number;
 };
+
+const STORAGE_KEY = "project100k-crypto-portfolio";
+
+const DEFAULT_COINS: Coin[] = [
+  {
+    id: 1,
+    name: "Bitcoin",
+    symbol: "BTC",
+    amount: 0.08,
+    buyPrice: 52000,
+    currentPrice: 65000,
+  },
+  {
+    id: 2,
+    name: "Ethereum",
+    symbol: "ETH",
+    amount: 1.2,
+    buyPrice: 2100,
+    currentPrice: 2600,
+  },
+  {
+    id: 3,
+    name: "Bittensor",
+    symbol: "TAO",
+    amount: 3,
+    buyPrice: 280,
+    currentPrice: 420,
+  },
+  {
+    id: 4,
+    name: "Render",
+    symbol: "RNDR",
+    amount: 100,
+    buyPrice: 5.5,
+    currentPrice: 8.5,
+  },
+];
 
 const CHART_COLORS = [
   "#10b981",
@@ -36,40 +73,38 @@ function formatEuro(value: number) {
 }
 
 export default function CryptoDashboardPage() {
-  const [coins, setCoins] = useState<Coin[]>([
-    {
-      id: 1,
-      name: "Bitcoin",
-      symbol: "BTC",
-      amount: 0.08,
-      buyPrice: 52000,
-      currentPrice: 65000,
-    },
-    {
-      id: 2,
-      name: "Ethereum",
-      symbol: "ETH",
-      amount: 1.2,
-      buyPrice: 2100,
-      currentPrice: 2600,
-    },
-    {
-      id: 3,
-      name: "Bittensor",
-      symbol: "TAO",
-      amount: 3,
-      buyPrice: 280,
-      currentPrice: 420,
-    },
-    {
-      id: 4,
-      name: "Render",
-      symbol: "RNDR",
-      amount: 100,
-      buyPrice: 5.5,
-      currentPrice: 8.5,
-    },
-  ]);
+  const [coins, setCoins] = useState<Coin[]>(DEFAULT_COINS);
+  const [opslagGeladen, setOpslagGeladen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const opgeslagenPortfolio = localStorage.getItem(STORAGE_KEY);
+
+      if (opgeslagenPortfolio) {
+        const opgeslagenCoins = JSON.parse(opgeslagenPortfolio);
+
+        if (Array.isArray(opgeslagenCoins)) {
+          setCoins(opgeslagenCoins);
+        }
+      }
+    } catch (error) {
+      console.error("Portfolio kon niet worden geladen:", error);
+    } finally {
+      setOpslagGeladen(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!opslagGeladen) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(coins));
+    } catch (error) {
+      console.error("Portfolio kon niet worden opgeslagen:", error);
+    }
+  }, [coins, opslagGeladen]);
 
   const resultaten = useMemo(() => {
     const coinData = coins.map((coin) => {
@@ -167,6 +202,18 @@ export default function CryptoDashboardPage() {
     );
   }
 
+  function resetPortfolio() {
+    const bevestiging = window.confirm(
+      "Weet je zeker dat je het portfolio wilt resetten?",
+    );
+
+    if (!bevestiging) {
+      return;
+    }
+
+    setCoins(DEFAULT_COINS);
+  }
+
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-12 text-white">
       <div className="mx-auto max-w-6xl">
@@ -182,17 +229,27 @@ export default function CryptoDashboardPage() {
 
             <p className="mt-4 max-w-2xl text-zinc-400">
               Bekijk jouw cryptoportfolio, verdeling en prestaties in één
-              overzicht.
+              overzicht. Je gegevens worden automatisch opgeslagen.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={addCoin}
-            className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-zinc-950 transition hover:bg-emerald-400"
-          >
-            + Coin toevoegen
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={resetPortfolio}
+              className="rounded-xl border border-zinc-700 px-5 py-3 font-semibold text-zinc-300 transition hover:bg-zinc-900"
+            >
+              Portfolio resetten
+            </button>
+
+            <button
+              type="button"
+              onClick={addCoin}
+              className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-zinc-950 transition hover:bg-emerald-400"
+            >
+              + Coin toevoegen
+            </button>
+          </div>
         </header>
 
         <section className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
@@ -234,7 +291,14 @@ export default function CryptoDashboardPage() {
             <p className="mt-2 text-3xl font-bold">
               {resultaten.besteCoin?.symbol ?? "-"}
             </p>
-            <p className="mt-1 text-sm text-emerald-400">
+
+            <p
+              className={`mt-1 text-sm ${
+                (resultaten.besteCoin?.winstPercentage ?? 0) >= 0
+                  ? "text-emerald-400"
+                  : "text-red-400"
+              }`}
+            >
               {resultaten.besteCoin
                 ? `${resultaten.besteCoin.winstPercentage.toFixed(1)}%`
                 : "0%"}
@@ -291,6 +355,7 @@ export default function CryptoDashboardPage() {
                     <span className="text-sm text-zinc-500">
                       Totale waarde
                     </span>
+
                     <span className="mt-1 text-2xl font-bold">
                       {formatEuro(resultaten.totaleWaarde)}
                     </span>
@@ -317,6 +382,7 @@ export default function CryptoDashboardPage() {
                           CHART_COLORS[index % CHART_COLORS.length],
                       }}
                     />
+
                     <span className="text-sm font-medium">{item.name}</span>
                   </div>
 
@@ -483,6 +549,7 @@ export default function CryptoDashboardPage() {
                       }`}
                     >
                       {formatEuro(coin.winst)}
+
                       <div className="mt-1 text-sm">
                         {coin.winstPercentage.toFixed(1)}%
                       </div>
@@ -535,9 +602,11 @@ export default function CryptoDashboardPage() {
 
         <footer className="mt-12 border-t border-zinc-800 py-8 text-center">
           <p className="font-bold text-emerald-400">Project100K</p>
+
           <p className="mt-2 text-sm text-zinc-500">
             Building wealth one investment at a time.
           </p>
+
           <p className="mt-2 text-xs text-zinc-600">
             © 2026 Project100K
           </p>
