@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Cell,
   Pie,
@@ -13,10 +13,18 @@ type Coin = {
   id: number;
   name: string;
   symbol: string;
+  coinGeckoId: string | null;
   amount: number;
   buyPrice: number;
   currentPrice: number;
 };
+
+type CryptoPriceResponse = Record<
+  string,
+  {
+    eur: number;
+  }
+>;
 
 const STORAGE_KEY = "project100k-crypto-portfolio";
 
@@ -25,33 +33,37 @@ const DEFAULT_COINS: Coin[] = [
     id: 1,
     name: "Bitcoin",
     symbol: "BTC",
+    coinGeckoId: "bitcoin",
     amount: 0.08,
     buyPrice: 52000,
-    currentPrice: 65000,
+    currentPrice: 0,
   },
   {
     id: 2,
     name: "Ethereum",
     symbol: "ETH",
+    coinGeckoId: "ethereum",
     amount: 1.2,
     buyPrice: 2100,
-    currentPrice: 2600,
+    currentPrice: 0,
   },
   {
     id: 3,
     name: "Bittensor",
     symbol: "TAO",
+    coinGeckoId: "bittensor",
     amount: 3,
     buyPrice: 280,
-    currentPrice: 420,
+    currentPrice: 0,
   },
   {
     id: 4,
     name: "Render",
     symbol: "RNDR",
+    coinGeckoId: "render-token",
     amount: 100,
     buyPrice: 5.5,
-    currentPrice: 8.5,
+    currentPrice: 0,
   },
 ];
 
@@ -68,13 +80,28 @@ function formatEuro(value: number) {
   return new Intl.NumberFormat("nl-NL", {
     style: "currency",
     currency: "EUR",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value);
+}
+
+function formatTime(date: Date | null) {
+  if (!date) {
+    return "Nog niet bijgewerkt";
+  }
+
+  return new Intl.DateTimeFormat("nl-NL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
 }
 
 export default function CryptoDashboardPage() {
   const [coins, setCoins] = useState<Coin[]>(DEFAULT_COINS);
   const [opslagGeladen, setOpslagGeladen] = useState(false);
+  const [prijzenLaden, setPrijzenLaden] = useState(true);
+  const [prijsFout, setPrijsFout] = useState("");
+  const [laatsteUpdate, setLaatsteUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
     try {
@@ -105,6 +132,68 @@ export default function CryptoDashboardPage() {
       console.error("Portfolio kon niet worden opgeslagen:", error);
     }
   }, [coins, opslagGeladen]);
+
+  const haalLivePrijzenOp = useCallback(async () => {
+    setPrijzenLaden(true);
+    setPrijsFout("");
+
+    try {
+      const response = await fetch("/api/crypto-prices", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("Live prijzen konden niet worden opgehaald.");
+      }
+
+      const prijzen = (await response.json()) as CryptoPriceResponse;
+
+      setCoins((huidigeCoins) =>
+        huidigeCoins.map((coin) => {
+          if (!coin.coinGeckoId) {
+            return coin;
+          }
+
+          const livePrijs = prijzen[coin.coinGeckoId]?.eur;
+
+          if (typeof livePrijs !== "number") {
+            return coin;
+          }
+
+          return {
+            ...coin,
+            currentPrice: livePrijs,
+          };
+        }),
+      );
+
+      setLaatsteUpdate(new Date());
+    } catch (error) {
+      console.error("Live prijzen ophalen mislukt:", error);
+
+      setPrijsFout(
+        "De live cryptoprijzen konden niet worden opgehaald. Probeer het later opnieuw.",
+      );
+    } finally {
+      setPrijzenLaden(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!opslagGeladen) {
+      return;
+    }
+
+    haalLivePrijzenOp();
+
+    const interval = window.setInterval(() => {
+      haalLivePrijzenOp();
+    }, 60000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [haalLivePrijzenOp, opslagGeladen]);
 
   const resultaten = useMemo(() => {
     const coinData = coins.map((coin) => {
@@ -138,9 +227,9 @@ export default function CryptoDashboardPage() {
       totaleInleg > 0 ? (totaleWinst / totaleInleg) * 100 : 0;
 
     const besteCoin =
-      [...coinData].sort(
-        (a, b) => b.winstPercentage - a.winstPercentage,
-      )[0] ?? null;
+      [...coinData]
+        .filter((coin) => coin.inleg > 0)
+        .sort((a, b) => b.winstPercentage - a.winstPercentage)[0] ?? null;
 
     const chartData = coinData
       .filter((coin) => coin.waarde > 0)
@@ -189,6 +278,7 @@ export default function CryptoDashboardPage() {
         id: nieuwId,
         name: "Nieuwe coin",
         symbol: `COIN${nieuwId}`,
+        coinGeckoId: null,
         amount: 0,
         buyPrice: 0,
         currentPrice: 0,
@@ -212,6 +302,11 @@ export default function CryptoDashboardPage() {
     }
 
     setCoins(DEFAULT_COINS);
+    localStorage.removeItem(STORAGE_KEY);
+
+    window.setTimeout(() => {
+      haalLivePrijzenOp();
+    }, 100);
   }
 
   return (
@@ -228,12 +323,51 @@ export default function CryptoDashboardPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-zinc-400">
-              Bekijk jouw cryptoportfolio, verdeling en prestaties in één
-              overzicht. Je gegevens worden automatisch opgeslagen.
+              Bekijk jouw cryptoportfolio met actuele marktprijzen, verdeling
+              en prestaties in één overzicht.
             </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+              <span
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 ${
+                  prijsFout
+                    ? "bg-red-500/10 text-red-400"
+                    : "bg-emerald-500/10 text-emerald-400"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    prijsFout ? "bg-red-400" : "bg-emerald-400"
+                  }`}
+                />
+
+                {prijzenLaden
+                  ? "Prijzen laden..."
+                  : prijsFout
+                    ? "Prijsupdate mislukt"
+                    : "Live prijzen actief"}
+              </span>
+
+              <span className="text-zinc-500">
+                Laatste update: {formatTime(laatsteUpdate)}
+              </span>
+            </div>
+
+            {prijsFout && (
+              <p className="mt-3 text-sm text-red-400">{prijsFout}</p>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={haalLivePrijzenOp}
+              disabled={prijzenLaden}
+              className="rounded-xl border border-emerald-500/30 px-5 py-3 font-semibold text-emerald-400 transition hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {prijzenLaden ? "Vernieuwen..." : "Prijzen vernieuwen"}
+            </button>
+
             <button
               type="button"
               onClick={resetPortfolio}
@@ -460,13 +594,13 @@ export default function CryptoDashboardPage() {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[1000px] text-left">
+            <table className="w-full min-w-[1050px] text-left">
               <thead>
                 <tr className="border-b border-zinc-800 text-sm text-zinc-400">
                   <th className="px-4 py-3 font-medium">Coin</th>
                   <th className="px-4 py-3 font-medium">Aantal</th>
                   <th className="px-4 py-3 font-medium">Aankoopprijs</th>
-                  <th className="px-4 py-3 font-medium">Huidige prijs</th>
+                  <th className="px-4 py-3 font-medium">Live prijs</th>
                   <th className="px-4 py-3 font-medium">Waarde</th>
                   <th className="px-4 py-3 font-medium">Winst</th>
                   <th className="px-4 py-3 font-medium">Actie</th>
@@ -521,20 +655,34 @@ export default function CryptoDashboardPage() {
                     </td>
 
                     <td className="px-4 py-4">
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={coin.currentPrice}
-                        onChange={(event) =>
-                          updateCoin(
-                            coin.id,
-                            "currentPrice",
-                            event.target.value,
-                          )
-                        }
-                        className="w-32 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-emerald-500"
-                      />
+                      {coin.coinGeckoId ? (
+                        <div>
+                          <p className="font-semibold">
+                            {prijzenLaden && coin.currentPrice === 0
+                              ? "Laden..."
+                              : formatEuro(coin.currentPrice)}
+                          </p>
+
+                          <p className="mt-1 text-xs text-emerald-400">
+                            Automatisch
+                          </p>
+                        </div>
+                      ) : (
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={coin.currentPrice}
+                          onChange={(event) =>
+                            updateCoin(
+                              coin.id,
+                              "currentPrice",
+                              event.target.value,
+                            )
+                          }
+                          className="w-32 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-emerald-500"
+                        />
+                      )}
                     </td>
 
                     <td className="px-4 py-4 font-semibold text-emerald-400">
